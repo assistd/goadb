@@ -3,6 +3,7 @@ package adb
 import (
 	stderrors "errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -31,12 +32,15 @@ type ServerConfig struct {
 	Dialer
 
 	fs *filesystem
+
+	NoServer bool
 }
 
 // Server knows how to start the adb server and connect to it.
 type server interface {
 	Start() error
 	Dial() (*wire.Conn, error)
+	NoServer() bool
 }
 
 func roundTripSingleResponse(s server, req string) ([]byte, error) {
@@ -109,9 +113,17 @@ func (s *realServer) Dial() (*wire.Conn, error) {
 
 // StartServer ensures there is a server running.
 func (s *realServer) Start() error {
+	if s.config.NoServer {
+		log.Print("no need start adb server!")
+		return nil
+	}
 	output, err := s.config.fs.CmdCombinedOutput(s.config.PathToAdb, "-L", fmt.Sprintf("tcp:%s", s.address), "start-server")
 	outputStr := strings.TrimSpace(string(output))
 	return errors.WrapErrorf(err, errors.ServerNotAvailable, "error starting server: %s\noutput:\n%s", err, outputStr)
+}
+
+func (s *realServer) NoServer() bool {
+	return s.config.NoServer
 }
 
 // filesystem abstracts interactions with the local filesystem for testability.
