@@ -109,10 +109,15 @@ func publishDevices(watcher *deviceWatcherImpl) {
 
 	var lastKnownStates map[string]DeviceState
 	finished := false
+	nostartServer := watcher.server.NoServer()
 
 	for {
 		scanner, err := connectToTrackDevices(watcher.server)
 		if err != nil {
+			if nostartServer {
+				log.Println("[DeviceWatcher] no need to restarting server")
+				continue
+			}
 			watcher.reportErr(err)
 			return
 		}
@@ -125,6 +130,10 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		}
 
 		if HasErrCode(err, ConnectionResetError) {
+			if nostartServer {
+				log.Println("[DeviceWatcher] no need to restarting server")
+				continue
+			}
 			// The server died, restart and reconnect.
 
 			// Delay by a random [0ms, 500ms) in case multiple DeviceWatchers are trying to
