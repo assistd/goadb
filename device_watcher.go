@@ -116,6 +116,7 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		if err != nil {
 			if nostartServer {
 				log.Println("[DeviceWatcher] no need to restarting server")
+				time.Sleep(500 *time.Millisecond)
 				continue
 			}
 			watcher.reportErr(err)
@@ -130,10 +131,6 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		}
 
 		if HasErrCode(err, ConnectionResetError) {
-			if nostartServer {
-				log.Println("[DeviceWatcher] no need to restarting server")
-				continue
-			}
 			// The server died, restart and reconnect.
 
 			// Delay by a random [0ms, 500ms) in case multiple DeviceWatchers are trying to
@@ -142,6 +139,15 @@ func publishDevices(watcher *deviceWatcherImpl) {
 
 			log.Printf("[DeviceWatcher] server died, restarting in %s…", delay)
 			time.Sleep(delay)
+
+			if nostartServer {
+				log.Println("[DeviceWatcher] no need to restarting server")
+				for serial, state := range lastKnownStates {
+					watcher.eventChan <- DeviceStateChangedEvent{serial, state, StateDisconnected}
+					lastKnownStates[serial] = StateDisconnected
+				}
+				continue
+			}
 			if err := watcher.server.Start(); err != nil {
 				log.Println("[DeviceWatcher] error restarting server, giving up")
 				watcher.reportErr(err)
