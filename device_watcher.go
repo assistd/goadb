@@ -111,15 +111,23 @@ func publishDevices(watcher *deviceWatcherImpl) {
 	finished := false
 	nostartServer := watcher.server.NoServer()
 
+	// Delay by a random [0ms, 500ms) in case multiple DeviceWatchers are trying to
+	// start the same server.
+	delay := time.Duration(rand.Intn(500)) * time.Millisecond
+
 	for {
 		scanner, err := connectToTrackDevices(watcher.server)
 		if err != nil {
-			if nostartServer {
+			if (nostartServer) {
 				log.Println("[DeviceWatcher] no need to restarting server")
-				time.Sleep(500 *time.Millisecond)
+				time.Sleep(delay)
 				continue
 			}
 			watcher.reportErr(err)
+			// Delay by a random [0ms, 500ms) in case multiple DeviceWatchers are trying to
+			// start the same server.
+			log.Printf("[DeviceWatcher] server died, restarting in %s…", delay)
+			time.Sleep(delay)
 			return
 		}
 
@@ -131,21 +139,17 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		}
 
 		if HasErrCode(err, ConnectionResetError) {
-			// The server died, restart and reconnect.
-
-			// Delay by a random [0ms, 500ms) in case multiple DeviceWatchers are trying to
-			// start the same server.
-			delay := time.Duration(rand.Intn(500)) * time.Millisecond
-
 			log.Printf("[DeviceWatcher] server died, restarting in %s…", delay)
 			time.Sleep(delay)
-
-			if nostartServer {
+			// The server died, restart and reconnect.
+			if (nostartServer) {
 				log.Println("[DeviceWatcher] no need to restarting server")
 				for serial, state := range lastKnownStates {
 					watcher.eventChan <- DeviceStateChangedEvent{serial, state, StateDisconnected}
 					lastKnownStates[serial] = StateDisconnected
 				}
+				// Delay by a random [0ms, 500ms) in case multiple DeviceWatchers are trying to
+				// start the same server.
 				continue
 			}
 			if err := watcher.server.Start(); err != nil {
@@ -155,6 +159,11 @@ func publishDevices(watcher *deviceWatcherImpl) {
 			} // Else server should be running, continue listening.
 		} else {
 			// Unknown error, don't retry.
+			if (nostartServer) {
+				log.Println("[DeviceWatcher] no need to restarting server")
+				time.Sleep(delay)
+				continue
+			}
 			watcher.reportErr(err)
 			return
 		}
