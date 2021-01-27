@@ -18,6 +18,9 @@ type DeviceInfo struct {
 
 	// Only set for devices connected via USB.
 	Usb string
+
+	// Only set for remote connect to adbd.
+	AdbdPort  string
 }
 
 // IsUsb returns true if the device is connected via USB.
@@ -36,6 +39,7 @@ func newDevice(serial string, attrs map[string]string) (*DeviceInfo, error) {
 		Model:      attrs["model"],
 		DeviceInfo: attrs["device"],
 		Usb:        attrs["usb"],
+		AdbdPort:   attrs["adbd_port"],
 	}, nil
 }
 
