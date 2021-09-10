@@ -294,7 +294,7 @@ func (c *Device) LaunchApk(pkg string) (string, error) {
 }
 
 // Click 436,1291
-func (c *Device) Click(x, y uint) (string, error) {
+func (c *Device) Click(x, y int) (string, error) {
 	temps := fmt.Sprintf("tap %d %d", x, y)
 	result, isError := c.RunCommand("input", temps)
 	return result, isError
