@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -247,7 +248,7 @@ func prepareCommandLine(cmd string, args ...string) (string, error) {
 			return "", errors.Errorf(errors.ParseError, "arg at index %d contains an invalid double quote: %s", i, arg)
 		}
 		if containsWhitespace(arg) {
-			args[i] = fmt.Sprintf("\"%s\"", arg)
+			//args[i] = fmt.Sprintf("\"%s\"", arg)
 		}
 	}
 
@@ -257,4 +258,64 @@ func prepareCommandLine(cmd string, args ...string) (string, error) {
 	}
 
 	return cmd, nil
+}
+
+// run adb cmd string
+// Use "\ " instead of " " like shell
+func (c *Device) runAdbCmd(cmd string) (string, error) {
+	// cmdArgs := strings.Split(cmd, " ")
+	cmdArgs := splitCmdAgrs(cmd)
+	adbPath, _ := exec.LookPath(AdbExecutableName)
+	result, err := exec.Command(adbPath, cmdArgs...).Output()
+	return string(result), err
+}
+
+// InstallApp TODO:connect to adb server
+func (c *Device) InstallApp(apk string) (string, error) {
+	var args string
+	args += " " + safeArg(strings.TrimSpace(apk))
+	result, isError := c.runAdbCmd("install" + args)
+	return result, isError
+}
+
+// UninstallApp TODO:connect to adb server
+func (c *Device) UninstallApp(pkg string) (string, error) {
+	var args string
+	args += " " + safeArg(strings.TrimSpace(pkg))
+	result, isError := c.runAdbCmd("uninstall" + args)
+	return result, isError
+}
+
+// LaunchApk
+func (c *Device) LaunchApk(pkg string) (string, error) {
+	temps := fmt.Sprintf("start -n %s", pkg)
+	result, isError := c.RunCommand("am", temps)
+	return result, isError
+}
+
+// Click 436,1291
+func (c *Device) Click(x, y uint) (string, error) {
+	temps := fmt.Sprintf("tap %d %d", x, y)
+	result, isError := c.RunCommand("input", temps)
+	return result, isError
+}
+
+// Drag 436,1291 -> 636,1291
+func (c *Device) Drag(x, y, x1, y1 int) (string, error) {
+	temps := fmt.Sprintf("swipe %d %d %d %d", x, y, x1, y1)
+	result, isError := c.RunCommand("input", temps)
+	return result, isError
+}
+
+// Home back to home
+func (c *Device) Home() (string, error) {
+	result, isError := c.RunCommand("input", "keyevent 3")
+	return result, isError
+}
+
+// Home back to home
+func (c *Device) InputText(text string) (string, error) {
+	temps := fmt.Sprintf("text %s", text)
+	result, isError := c.RunCommand("input", temps)
+	return result, isError
 }
