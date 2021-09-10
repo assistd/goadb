@@ -325,3 +325,34 @@ func (c *Device) InputText(text string) (string, error) {
 	result, isError := c.RunCommand("input", temps)
 	return result, isError
 }
+
+// Home back to home
+func (c *Device) ScreenShot() ([]byte, error) {
+	temps := fmt.Sprintf("-p")
+	//result, isError := c.RunCommand("screencap", temps)
+	cmd, err := prepareCommandLine("screencap", temps)
+	if err != nil {
+		return nil, wrapClientError(err, c, "RunCommand")
+	}
+
+	conn, err := c.dialDevice()
+	if err != nil {
+		return nil, wrapClientError(err, c, "RunCommand")
+	}
+	defer conn.Close()
+
+	req := fmt.Sprintf("shell:%s", cmd)
+
+	// Shell responses are special, they don't include a length header.
+	// We read until the stream is closed.
+	// So, we can't use conn.RoundTripSingleResponse.
+	if err = conn.SendMessage([]byte(req)); err != nil {
+		return nil, wrapClientError(err, c, "RunCommand")
+	}
+	if _, err = conn.ReadStatus(req); err != nil {
+		return nil, wrapClientError(err, c, "RunCommand")
+	}
+
+	resp, err := conn.ReadUntilEof()
+	return resp, wrapClientError(err, c, "RunCommand")
+}
