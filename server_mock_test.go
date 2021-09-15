@@ -28,6 +28,10 @@ type MockServer struct {
 	Trace []string
 }
 
+func (s *MockServer) NoServer() bool {
+	panic("implement me")
+}
+
 var _ server = &MockServer{}
 
 func (s *MockServer) Dial() (*wire.Conn, error) {
