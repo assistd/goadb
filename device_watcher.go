@@ -119,7 +119,7 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		scanner, err := connectToTrackDevices(watcher.server)
 		if err != nil {
 			if (nostartServer) {
-				log.Println("[DeviceWatcher] no need to restarting server")
+				log.Printf("[DeviceWatcher] no need to restarting server, connect err: %v\n", err)
 				time.Sleep(delay)
 				continue
 			}
@@ -134,6 +134,7 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		finished, err = publishDevicesUntilError(scanner, watcher.eventChan, &lastKnownStates)
 
 		if finished {
+			log.Printf("[DeviceWatcher] publishDevicesUntilError err: %v\n", err)
 			scanner.Close()
 			return
 		}
@@ -160,7 +161,7 @@ func publishDevices(watcher *deviceWatcherImpl) {
 		} else {
 			// Unknown error, don't retry.
 			if (nostartServer) {
-				log.Println("[DeviceWatcher] no need to restarting server")
+				log.Printf("[DeviceWatcher] no need to restarting server, HasErrCode err: %v\n", err)
 				time.Sleep(delay)
 				continue
 			}

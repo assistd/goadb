@@ -1,6 +1,6 @@
 package adb
 
-import "github.com/zach-klippenstein/goadb/internal/errors"
+import "log"
 
 // DeviceState represents one of the 3 possible states adb will report devices.
 // A device can be communicated with when it's in StateOnline.
@@ -26,7 +26,8 @@ var deviceStateStrings = map[string]DeviceState{
 func parseDeviceState(str string) (DeviceState, error) {
 	state, ok := deviceStateStrings[str]
 	if !ok {
-		return StateInvalid, errors.Errorf(errors.ParseError, "invalid device state: %q", state)
+		log.Printf("[parseDeviceState] not support state: %v\n", str)
+		return StateDisconnected, nil
 	}
 	return state, nil
 }
