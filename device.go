@@ -284,6 +284,14 @@ func (c *Device) Push(localPath, remotePath string) (string, error) {
 	return result, isError
 }
 
+// Forward
+func (c *Device) Forward(localPort, remotePort string) (string, error) {
+	var args string
+	args += " " + safeArg(strings.TrimSpace(localPort)) + " " + safeArg(strings.TrimSpace(remotePort))
+	result, isError := c.runAdbCmd("forward" + args)
+	return result, isError
+}
+
 // InstallApp TODO:connect to adb server
 func (c *Device) InstallApp(apk string) (string, error) {
 	var args string
