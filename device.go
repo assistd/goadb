@@ -272,7 +272,6 @@ func (c *Device) RunAdbCmd(cmd string) (string, error) {
 	// cmdArgs := strings.Split(cmd, " ")
 	cmdArgs := splitCmdAgrs(cmd)
 	adbPath, _ := exec.LookPath(AdbExecutableName)
-	fmt.Println(cmdArgs)
 	result, err := exec.Command(adbPath, cmdArgs...).Output()
 	return string(result), err
 }
@@ -281,7 +280,6 @@ func (c *Device) RunAdbCmd(cmd string) (string, error) {
 func (c *Device) Push(localPath, remotePath string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(localPath)) + " " + safeArg(strings.TrimSpace(remotePath))
-	fmt.Println(c.descriptor.serial)
 	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " push" + args)
 	return result, isError
 }
