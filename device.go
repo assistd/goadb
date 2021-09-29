@@ -262,10 +262,11 @@ func prepareCommandLine(cmd string, args ...string) (string, error) {
 
 // run adb cmd string
 // Use "\ " instead of " " like shell
-func (c *Device) runAdbCmd(cmd string) (string, error) {
+func (c *Device) RunAdbCmd(cmd string) (string, error) {
 	// cmdArgs := strings.Split(cmd, " ")
 	cmdArgs := splitCmdAgrs(cmd)
 	adbPath, _ := exec.LookPath(AdbExecutableName)
+	fmt.Println(cmdArgs)
 	result, err := exec.Command(adbPath, cmdArgs...).Output()
 	return string(result), err
 }
@@ -274,7 +275,8 @@ func (c *Device) runAdbCmd(cmd string) (string, error) {
 func (c *Device) Push(localPath, remotePath string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(localPath)) + " " + safeArg(strings.TrimSpace(remotePath))
-	result, isError := c.runAdbCmd("push" + args)
+	fmt.Println(c.descriptor.serial)
+	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " push" + args)
 	return result, isError
 }
 
@@ -282,7 +284,7 @@ func (c *Device) Push(localPath, remotePath string) (string, error) {
 func (c *Device) Forward(localPort, remotePort string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(localPort)) + " " + safeArg(strings.TrimSpace(remotePort))
-	result, isError := c.runAdbCmd("forward" + args)
+	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
 	return result, isError
 }
 
@@ -290,7 +292,7 @@ func (c *Device) Forward(localPort, remotePort string) (string, error) {
 func (c *Device) InstallApp(apk string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(apk))
-	result, isError := c.runAdbCmd("install" + args)
+	result, isError := c.RunAdbCmd("install" + args)
 	return result, isError
 }
 
@@ -298,7 +300,7 @@ func (c *Device) InstallApp(apk string) (string, error) {
 func (c *Device) UninstallApp(pkg string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(pkg))
-	result, isError := c.runAdbCmd("uninstall" + args)
+	result, isError := c.RunAdbCmd("uninstall" + args)
 	return result, isError
 }
 
