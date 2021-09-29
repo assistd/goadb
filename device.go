@@ -270,6 +270,14 @@ func (c *Device) runAdbCmd(cmd string) (string, error) {
 	return string(result), err
 }
 
+// Push file
+func (c *Device) Push(localPath, remotePath string) (string, error) {
+	var args string
+	args += " " + safeArg(strings.TrimSpace(localPath)) + " " + safeArg(strings.TrimSpace(remotePath))
+	result, isError := c.runAdbCmd("push" + args)
+	return result, isError
+}
+
 // InstallApp TODO:connect to adb server
 func (c *Device) InstallApp(apk string) (string, error) {
 	var args string
