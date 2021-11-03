@@ -290,7 +290,7 @@ func (c *Device) Forward(localPort, remotePort string) (string, error) {
 func (c *Device) InstallApp(apk string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(apk))
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + "install" + args)
+	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " install" + args)
 	return result, isError
 }
 
@@ -298,7 +298,7 @@ func (c *Device) InstallApp(apk string) (string, error) {
 func (c *Device) UninstallApp(pkg string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(pkg))
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + "uninstall" + args)
+	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " uninstall" + args)
 	return result, isError
 }
 
