@@ -292,6 +292,51 @@ func (c *Device) Forward(localPort, remotePort string) (string, error) {
 	return result, isError
 }
 
+// ClearForward
+func (c *Device) ClearForwardAll() (string, error) {
+	var args string
+	args += " " + "--remove-all"
+	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
+	return result, isError
+}
+
+// GetForwardList
+func (c *Device) GetForwardList(localPort, remotePort string) (string, error) {
+	var args string
+	args += " " + " --list "
+	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
+	return result, isError
+}
+
+// ClearForward by Serial
+func (c *Device) ClearForwardBySerial(deviceId string, port int, remote string) (string, error) {
+	forwardStr, err := c.GetForwardList(deviceId, remote)
+	if err != nil {
+		return "", err
+	}
+	var args string
+	forwardStrList := strings.Split(forwardStr, "\n")
+	for _, forwardLine := range forwardStrList {
+		if strings.TrimSpace(forwardLine) == "" || !strings.HasPrefix(forwardLine, deviceId) {
+			continue
+		}
+		forwardParams := strings.Fields(forwardLine)
+		if len(forwardParams) < 2 {
+			continue
+		}
+		if port > 0 && port < 65535 && !strings.Contains(forwardParams[1], fmt.Sprintf("tcp:%d", port)) {
+			continue
+		}
+		if remote != "" && !strings.Contains(forwardParams[2], "localabstract:"+remote) &&
+			!strings.Contains(forwardParams[2], "tcp:"+remote) {
+			continue
+		}
+		args += " " + " --remove " + forwardParams[1]
+	}
+	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
+	return result, isError
+}
+
 // InstallApp TODO:connect to adb server
 func (c *Device) InstallApp(apk string) (string, error) {
 	var args string
