@@ -53,6 +53,11 @@ func (c *Adb) Device(descriptor DeviceDescriptor) *Device {
 	}
 }
 
+func NewDeviceWithSerial(serial string) (*Device,error) {
+	client, err := NewWithConfig(ServerConfig{Port: 5037})
+	return client.Device(DeviceWithSerial(serial)), err
+}
+
 func (c *Adb) NewDeviceWatcher() *DeviceWatcher {
 	return newDeviceWatcher(c.server)
 }
