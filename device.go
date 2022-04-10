@@ -1,13 +1,16 @@
 package adb
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/cheggaaa/pb"
 	"github.com/zach-klippenstein/goadb/internal/errors"
 	"github.com/zach-klippenstein/goadb/wire"
 )
@@ -276,6 +279,17 @@ func (c *Device) RunAdbCmd(cmd string) (string, error) {
 	return string(result), err
 }
 
+// run adb cmd string
+// Use "\ " instead of " " like shell
+func (c *Device) RunAdbCmdCtx(ctx context.Context, cmd string) (string, error) {
+	// cmdArgs := strings.Split(cmd, " ")
+	cmdArgs := splitCmdAgrs(cmd)
+	adbPath, _ := exec.LookPath(AdbExecutableName)
+	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
+	result, err := runCmd.Output()
+	return string(result), err
+}
+
 // Push file
 func (c *Device) Push(localPath, remotePath string) (string, error) {
 	var args string
@@ -338,18 +352,43 @@ func (c *Device) ClearForwardBySerial(deviceId string, port int, remote string) 
 }
 
 // InstallApp TODO:connect to adb server
-func (c *Device) InstallApp(apk string) (string, error) {
+func (c *Device) InstallApp(ctx context.Context, apk string, reinstall bool, grantPermission bool) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(apk))
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " install" + args)
+	if reinstall {
+		args += " -r "
+	}
+
+	if grantPermission {
+		args += " -g "
+	}
+
+	result, isError := c.RunAdbCmdCtx(ctx, "-s " + c.descriptor.serial + " install" + args)
+	return result, isError
+}
+
+// InstallApp TODO:connect to adb server
+func (c *Device) InstallAppByPm(ctx context.Context, apk string, reinstall bool, grantPermission bool) (string, error) {
+	var args string
+	if reinstall {
+		args += " -r "
+	}
+
+	if grantPermission {
+		args += " -g "
+	}
+
+	args += " " + safeArg(strings.TrimSpace(apk))
+
+	result, isError := c.RunAdbCmdCtx(ctx, "-s " + c.descriptor.serial + " shell pm install " + args)
 	return result, isError
 }
 
 // UninstallApp TODO:connect to adb server
-func (c *Device) UninstallApp(pkg string) (string, error) {
+func (c *Device) UninstallApp(ctx context.Context, pkg string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(pkg))
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " uninstall" + args)
+	result, isError := c.RunAdbCmdCtx(ctx, "-s " + c.descriptor.serial + " uninstall " + args)
 	return result, isError
 }
 
@@ -416,4 +455,124 @@ func (c *Device) ScreenShot() ([]byte, error) {
 
 	resp, err := conn.ReadUntilEof()
 	return resp, wrapClientError(err, c, "RunCommand")
+}
+
+const StdIoFilename = "-"
+
+type PushEvent struct {
+	Current int64
+	Total   int64
+	Speed   string
+	Raw     string
+}
+
+func (c *Device) PushWithProgress(ctx context.Context, showProgress bool, localPath, remotePath string, cb func(event PushEvent)) error {
+	if remotePath == "" {
+		return wrapClientError(errors.WrapErrf(nil,"error: must specify remote file"),
+			c, "PushWithProgress")
+	}
+
+	var (
+		localFile io.ReadCloser
+		size      int
+		perms     os.FileMode
+		mtime     time.Time
+	)
+	if localPath == "" || localPath == StdIoFilename {
+		localFile = os.Stdin
+		// 0 size will hide the progress bar.
+		perms = os.FileMode(0660)
+		mtime = MtimeOfClose
+	} else {
+		var err error
+		localFile, err = os.Open(localPath)
+		if err != nil {
+			return wrapClientError(err, c, "PushWithProgress")
+		}
+		info, err := os.Stat(localPath)
+		if err != nil {
+			return wrapClientError(err, c, "PushWithProgress")
+		}
+		size = int(info.Size())
+		perms = info.Mode().Perm()
+		mtime = info.ModTime()
+	}
+	defer localFile.Close()
+
+	writer, err := c.OpenWrite(remotePath, perms, mtime)
+	if err != nil {
+		return wrapClientError(err, c, "PushWithProgress")
+	}
+	defer writer.Close()
+
+	if ctx != nil {
+		go func() {
+			select {
+			case <-ctx.Done():
+				writer.Close()
+			}
+		}()
+	}
+
+	if err := c.copyWithProgressAndStats(writer, localFile, size, showProgress, cb); err != nil {
+		fmt.Fprintln(os.Stderr, "error pushing file:", err)
+		return wrapClientError(err, c, "PushWithProgress")
+	}
+	return nil
+}
+
+// copyWithProgressAndStats copies src to dst.
+// If showProgress is true and size is positive, a progress bar is shown.
+// After copying, final stats about the transfer speed and size are shown.
+// Progress and stats are printed to stderr.
+func (c *Device) copyWithProgressAndStats(dst io.Writer, src io.Reader, size int, showProgress bool, cb func(event PushEvent)) error {
+	var progress *pb.ProgressBar
+	if showProgress && size > 0 && cb != nil {
+		progress = pb.New(size)
+		progress.Callback = func(out string) {
+			fmt.Println("current", progress.Add64(0))
+
+			cb(PushEvent{
+				Current: progress.Add64(0),
+				Total:   progress.Total,
+				Speed:   strings.TrimSpace(out),
+			})
+		}
+		progress.ShowSpeed = true
+
+		progress.ShowCounters = false
+		progress.ShowPercent = false
+		progress.ShowTimeLeft = false
+		progress.ShowElapsedTime = false
+		progress.ShowFinalTime = false
+		progress.ShowBar = false
+
+		progress.SetUnits(pb.U_BYTES_DEC)
+		progress.Start()
+
+		dst = io.MultiWriter(dst, progress)
+	}
+
+	startTime := time.Now()
+	copied, err := io.Copy(dst, src)
+
+	if progress != nil {
+		progress.Finish()
+	}
+
+	if pathErr, ok := err.(*os.PathError); ok {
+		if errno, ok := pathErr.Err.(syscall.Errno); ok && errno == syscall.EPIPE {
+			// Pipe closed. Handle this like an EOF.
+			err = nil
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	duration := time.Now().Sub(startTime)
+	rate := int64(float64(copied) / duration.Seconds())
+	fmt.Fprintf(os.Stderr, "%d B/s (%d bytes in %s)\n", rate, copied, duration)
+
+	return nil
 }
