@@ -290,6 +290,17 @@ func (c *Device) RunAdbCmdCtx(ctx context.Context, cmd string) (string, error) {
 	return string(result), err
 }
 
+// run adb cmd string
+// Use "\ " instead of " " like shell
+func (c *Device) RunAdbShellCmdCtx(ctx context.Context, cmd string) (string, error) {
+	// cmdArgs := strings.Split(cmd, " ")
+	cmdArgs := splitCmdAgrs("-s " + c.descriptor.serial + " shell " + cmd)
+	adbPath, _ := exec.LookPath(AdbExecutableName)
+	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
+	result, err := runCmd.Output()
+	return string(result), err
+}
+
 // Push file
 func (c *Device) Push(localPath, remotePath string) (string, error) {
 	var args string
