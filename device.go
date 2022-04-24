@@ -290,6 +290,15 @@ func (c *Device) RunAdbCmdCtx(ctx context.Context, cmd string) (string, error) {
 	return string(result), err
 }
 
+// run adb shell cmd string
+func (c *Device) RunAdbShellCmdCtx(ctx context.Context, cmd string) (string, error) {
+	cmdArgs := splitCmdAgrs("-s " + c.descriptor.serial + " shell " + cmd)
+	adbPath, _ := exec.LookPath(AdbExecutableName)
+	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
+	result, err := runCmd.Output()
+	return string(result), err
+}
+
 // Push file
 func (c *Device) Push(localPath, remotePath string) (string, error) {
 	var args string
