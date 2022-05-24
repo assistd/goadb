@@ -347,7 +347,6 @@ func (c *Device) ClearForwardBySerial(deviceId string, port int, remote string) 
 	if err != nil {
 		return "", err
 	}
-	var args string
 	forwardStrList := strings.Split(forwardStr, "\n")
 	for _, forwardLine := range forwardStrList {
 		if strings.TrimSpace(forwardLine) == "" || !strings.HasPrefix(forwardLine, deviceId) {
@@ -364,10 +363,13 @@ func (c *Device) ClearForwardBySerial(deviceId string, port int, remote string) 
 			!strings.Contains(forwardParams[2], "tcp:"+remote) {
 			continue
 		}
-		args += " " + " --remove " + forwardParams[1]
+		args := " " + " --remove " + forwardParams[1]
+		result, err := c.RunAdbCmd("-s " + c.descriptor.serial + " forward " + args)
+		if err != nil {
+			return result, err
+		}
 	}
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
-	return result, isError
+	return "ok", nil
 }
 
 // InstallApp TODO:connect to adb server
