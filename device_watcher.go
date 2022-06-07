@@ -238,9 +238,7 @@ func calculateStateDiffs(oldStates, newStates map[string]DeviceState) (events []
 		if oldState != newState {
 			if ok {
 				// Device present in both lists: state changed.
-				if newState == StateOnline {
-					events = append(events, DeviceStateChangedEvent{serial, oldState, newState})
-				}
+				events = append(events, DeviceStateChangedEvent{serial, oldState, newState})
 			} else {
 				// Device only present in old list: device removed.
 				events = append(events, DeviceStateChangedEvent{serial, oldState, StateDisconnected})
@@ -249,8 +247,8 @@ func calculateStateDiffs(oldStates, newStates map[string]DeviceState) (events []
 	}
 
 	for serial, newState := range newStates {
-		_, ok := oldStates[serial]
-		if newState == StateOnline && !ok {
+		if _, ok := oldStates[serial]; !ok {
+			// Device only present in new list: device added.
 			events = append(events, DeviceStateChangedEvent{serial, StateDisconnected, newState})
 		}
 	}
