@@ -1,6 +1,7 @@
 package adb
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -53,13 +54,17 @@ func (c *Adb) Device(descriptor DeviceDescriptor) *Device {
 	}
 }
 
-func NewDeviceWithSerial(serial string) (*Device,error) {
+func NewDeviceWithSerial(serial string) (*Device, error) {
 	client, err := NewWithConfig(ServerConfig{Port: 5037})
 	return client.Device(DeviceWithSerial(serial)), err
 }
 
 func (c *Adb) NewDeviceWatcher() *DeviceWatcher {
 	return newDeviceWatcher(c.server)
+}
+
+func (c *Adb) NewDeviceWatcherWithCtx(ctx context.Context) *DeviceWatcher {
+	return newDeviceWatcherWitchCtx(c.server, ctx)
 }
 
 // ServerVersion asks the ADB server for its internal version number.

@@ -1,6 +1,7 @@
 package adb
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"runtime"
@@ -49,6 +50,10 @@ type deviceWatcherImpl struct {
 }
 
 func newDeviceWatcher(server server) *DeviceWatcher {
+	return newDeviceWatcherWitchCtx(server, nil)
+}
+
+func newDeviceWatcherWitchCtx(server server, ctx context.Context) *DeviceWatcher {
 	watcher := &DeviceWatcher{&deviceWatcherImpl{
 		server:    server,
 		eventChan: make(chan DeviceStateChangedEvent),
@@ -58,7 +63,7 @@ func newDeviceWatcher(server server) *DeviceWatcher {
 		watcher.Shutdown()
 	})
 
-	go publishDevices(watcher.deviceWatcherImpl)
+	go publishDevices(watcher.deviceWatcherImpl, ctx)
 
 	return watcher
 }
@@ -104,7 +109,7 @@ chan sends, close the scanner and return true. If the msg chan closes, just retu
 publishDevices can look at ret val: if false and err == EOF, reconnect. If false and other error, report err
 and abort. If true, report no error and stop.
 */
-func publishDevices(watcher *deviceWatcherImpl) {
+func publishDevices(watcher *deviceWatcherImpl, ctx context.Context) {
 	defer close(watcher.eventChan)
 
 	var lastKnownStates map[string]DeviceState
@@ -117,9 +122,17 @@ func publishDevices(watcher *deviceWatcherImpl) {
 
 	for {
 		scanner, err := connectToTrackDevices(watcher.server)
+
+		go func() {
+			if ctx != nil {
+				<-ctx.Done()
+				log.Println("[DeviceWatcher] give up by ctx done")
+				nostartServer = false
+				scanner.Close()
+			}
+		}()
 		if err != nil {
-			if (nostartServer) {
-				log.Println("[DeviceWatcher] no need to restarting server")
+			if nostartServer {
 				time.Sleep(delay)
 				continue
 			}
@@ -138,12 +151,16 @@ func publishDevices(watcher *deviceWatcherImpl) {
 			return
 		}
 
+		select {
+		case <-ctx.Done():
+			return
+		}
+
 		if HasErrCode(err, ConnectionResetError) {
 			log.Printf("[DeviceWatcher] server died, restarting in %s…", delay)
 			time.Sleep(delay)
 			// The server died, restart and reconnect.
-			if (nostartServer) {
-				log.Println("[DeviceWatcher] no need to restarting server")
+			if nostartServer {
 				for serial, state := range lastKnownStates {
 					watcher.eventChan <- DeviceStateChangedEvent{serial, state, StateDisconnected}
 					lastKnownStates[serial] = StateDisconnected
@@ -153,14 +170,13 @@ func publishDevices(watcher *deviceWatcherImpl) {
 				continue
 			}
 			if err := watcher.server.Start(); err != nil {
-				log.Println("[DeviceWatcher] error restarting server, giving up")
 				watcher.reportErr(err)
 				return
 			} // Else server should be running, continue listening.
+
 		} else {
 			// Unknown error, don't retry.
-			if (nostartServer) {
-				log.Println("[DeviceWatcher] no need to restarting server")
+			if nostartServer {
 				time.Sleep(delay)
 				continue
 			}
