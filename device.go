@@ -276,6 +276,9 @@ func (c *Device) RunAdbCmd(cmd string) (string, error) {
 	cmdArgs := splitCmdAgrs(cmd)
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	result, err := exec.Command(adbPath, cmdArgs...).Output()
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		return string(result), fmt.Errorf(string(exiterr.Stderr))
+	}
 	return string(result), err
 }
 
@@ -286,6 +289,9 @@ func (c *Device) RunAdbCmdCtx(ctx context.Context, cmd string) (string, error) {
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
 	result, err := runCmd.Output()
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		return string(result), fmt.Errorf(string(exiterr.Stderr))
+	}
 	return string(result), err
 }
 
@@ -306,6 +312,9 @@ func (c *Device) RunAdbShellCmdCtx(ctx context.Context, cmd string) (string, err
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
 	result, err := runCmd.Output()
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		return string(result), fmt.Errorf(string(exiterr.Stderr))
+	}
 	return string(result), err
 }
 
