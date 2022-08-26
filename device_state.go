@@ -17,6 +17,7 @@ const (
 	StateDisconnected
 	StateOffline
 	StateOnline
+	StateHost
 )
 
 var deviceStateStrings = map[string]DeviceState{
@@ -25,6 +26,7 @@ var deviceStateStrings = map[string]DeviceState{
 	"device":       StateOnline,
 	"unauthorized": StateUnauthorized,
 	"authorizing":  StateAuthorizing,
+	"host":         StateHost,
 }
 
 func parseDeviceState(str string) (DeviceState, error) {

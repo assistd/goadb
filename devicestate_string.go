@@ -14,11 +14,12 @@ func _() {
 	_ = x[StateDisconnected-3]
 	_ = x[StateOffline-4]
 	_ = x[StateOnline-5]
+	_ = x[StateHost-6]
 }
 
-const _DeviceState_name = "StateInvalidStateUnauthorizedStateAuthorizingStateDisconnectedStateOfflineStateOnline"
+const _DeviceState_name = "StateInvalidStateUnauthorizedStateAuthorizingStateDisconnectedStateOfflineStateOnlineStateHost"
 
-var _DeviceState_index = [...]uint8{0, 12, 29, 45, 62, 74, 85}
+var _DeviceState_index = [...]uint8{0, 12, 29, 45, 62, 74, 85, 94}
 
 func (i DeviceState) String() string {
 	if i < 0 || i >= DeviceState(len(_DeviceState_index)-1) {
