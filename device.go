@@ -295,6 +295,20 @@ func (c *Device) RunAdbCmdCtx(ctx context.Context, cmd string) (string, error) {
 	return string(result), err
 }
 
+// run adb cmd string with timeout
+func (c *Device) RunAdbCmdCtxWithTimeout(ctx context.Context, cmd string, duration time.Duration) (string, error) {
+	// cmdArgs := strings.Split(cmd, " ")
+	ctx1,_ := context.WithTimeout(ctx, duration)
+	cmdArgs := splitCmdAgrs(cmd)
+	adbPath, _ := exec.LookPath(AdbExecutableName)
+	runCmd := exec.CommandContext(ctx1, adbPath, cmdArgs...)
+	result, err := runCmd.Output()
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		return string(result), fmt.Errorf(string(exiterr.Stderr))
+	}
+	return string(result), err
+}
+
 // run adb cmd with output string
 func (c *Device) RunAdbCmdCtxWithStdoutPipe(ctx context.Context, cmd string) (io.ReadCloser, error) {
 	// cmdArgs := strings.Split(cmd, " ")
@@ -311,6 +325,19 @@ func (c *Device) RunAdbShellCmdCtx(ctx context.Context, cmd string) (string, err
 	cmdArgs := splitCmdAgrs("-s " + c.descriptor.serial + " shell " + cmd)
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
+	result, err := runCmd.Output()
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		return string(result), fmt.Errorf(string(exiterr.Stderr))
+	}
+	return string(result), err
+}
+
+// run adb shell cmd string with timeout
+func (c *Device) RunAdbShellCmdCtxWithTimeout(ctx context.Context, cmd string, duration time.Duration) (string, error) {
+	ctx1,_ := context.WithTimeout(ctx, duration)
+	cmdArgs := splitCmdAgrs("-s " + c.descriptor.serial + " shell " + cmd)
+	adbPath, _ := exec.LookPath(AdbExecutableName)
+	runCmd := exec.CommandContext(ctx1, adbPath, cmdArgs...)
 	result, err := runCmd.Output()
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		return string(result), fmt.Errorf(string(exiterr.Stderr))
