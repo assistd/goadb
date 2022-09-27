@@ -313,6 +313,10 @@ func (c *Device) RunAdbCmdCtxWithTimeout(ctx context.Context, cmd string, durati
 func (c *Device) RunAdbCmdCtxWithStdoutPipe(ctx context.Context, cmd string) (io.ReadCloser, error) {
 	// cmdArgs := strings.Split(cmd, " ")
 	cmdArgs := splitCmdAgrs(cmd)
+	serial, _ := c.Serial()
+	if serial != "" && len(cmdArgs) > 0 && cmdArgs[0] != "-s" {
+		cmdArgs = append([]string{"-s", serial}, cmdArgs...)
+	}
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
 	output, err := runCmd.StdoutPipe()
