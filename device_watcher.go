@@ -147,6 +147,9 @@ func publishDevices(watcher *deviceWatcherImpl, ctx context.Context) {
 		finished, err = publishDevicesUntilError(scanner, watcher.eventChan, &lastKnownStates)
 		if err != nil {
 			log.Printf("[DeviceWatcher] publish devices failed %s…", err)
+			watcher.reportErr(err)
+			scanner.Close()
+			return
 		}
 
 		if finished {
