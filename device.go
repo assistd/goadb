@@ -298,7 +298,7 @@ func (c *Device) RunAdbCmdCtx(ctx context.Context, cmd string) (string, error) {
 // run adb cmd string with timeout
 func (c *Device) RunAdbCmdCtxWithTimeout(ctx context.Context, cmd string, duration time.Duration) (string, error) {
 	// cmdArgs := strings.Split(cmd, " ")
-	ctx1,_ := context.WithTimeout(ctx, duration)
+	ctx1, _ := context.WithTimeout(ctx, duration)
 	cmdArgs := splitCmdAgrs(cmd)
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	runCmd := exec.CommandContext(ctx1, adbPath, cmdArgs...)
@@ -322,7 +322,7 @@ func (c *Device) RunAdbCmdCtxWithStdoutPipe(ctx context.Context, cmd string) (io
 
 // run adb shell cmd string
 func (c *Device) RunAdbShellCmdCtx(ctx context.Context, cmd string) (string, error) {
-	cmdArgs := splitCmdAgrs("-s " + c.descriptor.serial + " shell " + cmd)
+	cmdArgs := splitCmdAgrs("-t " + c.descriptor.serial + " shell " + cmd)
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	runCmd := exec.CommandContext(ctx, adbPath, cmdArgs...)
 	result, err := runCmd.Output()
@@ -334,8 +334,8 @@ func (c *Device) RunAdbShellCmdCtx(ctx context.Context, cmd string) (string, err
 
 // run adb shell cmd string with timeout
 func (c *Device) RunAdbShellCmdCtxWithTimeout(ctx context.Context, cmd string, duration time.Duration) (string, error) {
-	ctx1,_ := context.WithTimeout(ctx, duration)
-	cmdArgs := splitCmdAgrs("-s " + c.descriptor.serial + " shell " + cmd)
+	ctx1, _ := context.WithTimeout(ctx, duration)
+	cmdArgs := splitCmdAgrs("-t " + c.descriptor.serial + " shell " + cmd)
 	adbPath, _ := exec.LookPath(AdbExecutableName)
 	runCmd := exec.CommandContext(ctx1, adbPath, cmdArgs...)
 	result, err := runCmd.Output()
@@ -349,7 +349,7 @@ func (c *Device) RunAdbShellCmdCtxWithTimeout(ctx context.Context, cmd string, d
 func (c *Device) Push(localPath, remotePath string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(localPath)) + " " + safeArg(strings.TrimSpace(remotePath))
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " push" + args)
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " push" + args)
 	return result, isError
 }
 
@@ -357,7 +357,7 @@ func (c *Device) Push(localPath, remotePath string) (string, error) {
 func (c *Device) Forward(localPort, remotePort string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(localPort)) + " " + safeArg(strings.TrimSpace(remotePort))
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " forward" + args)
 	return result, isError
 }
 
@@ -365,7 +365,7 @@ func (c *Device) Forward(localPort, remotePort string) (string, error) {
 func (c *Device) ClearForwardAll() (string, error) {
 	var args string
 	args += " " + "--remove-all"
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " forward" + args)
 	return result, isError
 }
 
@@ -373,7 +373,7 @@ func (c *Device) ClearForwardAll() (string, error) {
 func (c *Device) GetForwardList(localPort, remotePort string) (string, error) {
 	var args string
 	args += " " + " --list "
-	result, isError := c.RunAdbCmd("-s " + c.descriptor.serial + " forward" + args)
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " forward" + args)
 	return result, isError
 }
 
@@ -400,7 +400,7 @@ func (c *Device) ClearForwardBySerial(deviceId string, port int, remote string) 
 			continue
 		}
 		args := " " + " --remove " + forwardParams[1]
-		result, err := c.RunAdbCmd("-s " + c.descriptor.serial + " forward " + args)
+		result, err := c.RunAdbCmd("-t " + c.descriptor.serial + " forward " + args)
 		if err != nil {
 			return result, err
 		}
@@ -420,7 +420,7 @@ func (c *Device) InstallApp(ctx context.Context, apk string, reinstall bool, gra
 		args += " -g "
 	}
 
-	result, isError := c.RunAdbCmdCtx(ctx, "-s " + c.descriptor.serial + " install" + args)
+	result, isError := c.RunAdbCmdCtx(ctx, "-t "+c.descriptor.serial+" install"+args)
 	return result, isError
 }
 
@@ -437,7 +437,7 @@ func (c *Device) InstallAppByPm(ctx context.Context, apk string, reinstall bool,
 
 	args += " " + safeArg(strings.TrimSpace(apk))
 
-	result, isError := c.RunAdbCmdCtx(ctx, "-s " + c.descriptor.serial + " shell pm install " + args)
+	result, isError := c.RunAdbCmdCtx(ctx, "-t "+c.descriptor.serial+" shell pm install "+args)
 	return result, isError
 }
 
@@ -445,34 +445,34 @@ func (c *Device) InstallAppByPm(ctx context.Context, apk string, reinstall bool,
 func (c *Device) UninstallApp(ctx context.Context, pkg string) (string, error) {
 	var args string
 	args += " " + safeArg(strings.TrimSpace(pkg))
-	result, isError := c.RunAdbCmdCtx(ctx, "-s " + c.descriptor.serial + " uninstall " + args)
+	result, isError := c.RunAdbCmdCtx(ctx, "-t "+c.descriptor.serial+" uninstall "+args)
 	return result, isError
 }
 
 // LaunchApk
 func (c *Device) LaunchApk(pkg string) (string, error) {
 	temps := fmt.Sprintf("start -n %s", pkg)
-	result, isError := c.RunCommand("am", temps)
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " shell am " + temps)
 	return result, isError
 }
 
 // Click 436,1291
 func (c *Device) Click(x, y int) (string, error) {
 	temps := fmt.Sprintf("tap %d %d", x, y)
-	result, isError := c.RunCommand("input", temps)
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " shell input " + temps)
 	return result, isError
 }
 
 // Drag 436,1291 -> 636,1291
 func (c *Device) Drag(x, y, x1, y1 int) (string, error) {
 	temps := fmt.Sprintf("swipe %d %d %d %d", x, y, x1, y1)
-	result, isError := c.RunCommand("input", temps)
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " shell input " + temps)
 	return result, isError
 }
 
 // Home back to home
 func (c *Device) Home() (string, error) {
-	result, isError := c.RunCommand("input", "keyevent 3")
+	result, isError := c.RunAdbCmd("-t " + c.descriptor.serial + " shell input keyevent 3")
 	return result, isError
 }
 
@@ -525,7 +525,7 @@ type PushEvent struct {
 
 func (c *Device) PushWithProgress(ctx context.Context, showProgress bool, localPath, remotePath string, cb func(event PushEvent)) error {
 	if remotePath == "" {
-		return wrapClientError(errors.WrapErrf(nil,"error: must specify remote file"),
+		return wrapClientError(errors.WrapErrf(nil, "error: must specify remote file"),
 			c, "PushWithProgress")
 	}
 

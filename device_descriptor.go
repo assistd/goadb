@@ -14,6 +14,8 @@ const (
 	DeviceUsb
 	// host:transport-local and host-local:<request>
 	DeviceLocal
+	// host:transport-id:<transport-id> and host-serial:<transport-id>:<request>
+	DeviceTransportId
 )
 
 type DeviceDescriptor struct {
@@ -21,6 +23,8 @@ type DeviceDescriptor struct {
 
 	// Only used if Type is DeviceSerial.
 	serial string
+
+	transportId string
 }
 
 func AnyDevice() DeviceDescriptor {
@@ -42,6 +46,13 @@ func DeviceWithSerial(serial string) DeviceDescriptor {
 	}
 }
 
+func DeviceWithTransportId(tid string) DeviceDescriptor {
+	return DeviceDescriptor{
+		descriptorType: DeviceTransportId,
+		transportId:    tid,
+	}
+}
+
 func (d DeviceDescriptor) String() string {
 	if d.descriptorType == DeviceSerial {
 		return fmt.Sprintf("%s[%s]", d.descriptorType, d.serial)
@@ -59,6 +70,8 @@ func (d DeviceDescriptor) getHostPrefix() string {
 		return "host-local"
 	case DeviceSerial:
 		return fmt.Sprintf("host-serial:%s", d.serial)
+	case DeviceTransportId:
+		return fmt.Sprintf("host-transport-id:%s", d.transportId)
 	default:
 		panic(fmt.Sprintf("invalid DeviceDescriptorType: %v", d.descriptorType))
 	}
@@ -74,6 +87,8 @@ func (d DeviceDescriptor) getTransportDescriptor() string {
 		return "transport-local"
 	case DeviceSerial:
 		return fmt.Sprintf("transport:%s", d.serial)
+	case DeviceTransportId:
+		return fmt.Sprintf("transport-id:%s", d.transportId)
 	default:
 		panic(fmt.Sprintf("invalid DeviceDescriptorType: %v", d.descriptorType))
 	}

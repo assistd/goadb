@@ -59,12 +59,17 @@ func NewDeviceWithSerial(serial string) (*Device, error) {
 	return client.Device(DeviceWithSerial(serial)), err
 }
 
+func NewDeviceWithTransportId(transportId string) (*Device, error) {
+	client, err := NewWithConfig(ServerConfig{Port: 5037})
+	return client.Device(DeviceWithTransportId(transportId)), err
+}
+
 func (c *Adb) NewDeviceWatcher() *DeviceWatcher {
 	return newDeviceWatcher(c.server)
 }
 
-func (c *Adb) NewDeviceWatcherWithCtx(ctx context.Context) *DeviceWatcher {
-	return newDeviceWatcherWitchCtx(c.server, ctx)
+func (c *Adb) NewDeviceWatcherWithCtx(ctx context.Context, useTransportId bool) *DeviceWatcher {
+	return newDeviceWatcherWitchCtx(c.server, ctx, useTransportId)
 }
 
 // ServerVersion asks the ADB server for its internal version number.

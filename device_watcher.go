@@ -46,17 +46,19 @@ type deviceWatcherImpl struct {
 	// If an error occurs, it is stored here and eventChan is close immediately after.
 	err atomic.Value
 
-	eventChan chan DeviceStateChangedEvent
+	eventChan      chan DeviceStateChangedEvent
+	useTransportId bool
 }
 
 func newDeviceWatcher(server server) *DeviceWatcher {
-	return newDeviceWatcherWitchCtx(server, nil)
+	return newDeviceWatcherWitchCtx(server, nil, true)
 }
 
-func newDeviceWatcherWitchCtx(server server, ctx context.Context) *DeviceWatcher {
+func newDeviceWatcherWitchCtx(server server, ctx context.Context, useTransportId bool) *DeviceWatcher {
 	watcher := &DeviceWatcher{&deviceWatcherImpl{
-		server:    server,
-		eventChan: make(chan DeviceStateChangedEvent),
+		server:         server,
+		eventChan:      make(chan DeviceStateChangedEvent),
+		useTransportId: useTransportId,
 	}}
 
 	runtime.SetFinalizer(watcher, func(watcher *DeviceWatcher) {
@@ -121,7 +123,7 @@ func publishDevices(watcher *deviceWatcherImpl, ctx context.Context) {
 	delay := time.Duration(rand.Intn(500)) * time.Millisecond
 
 	for {
-		scanner, err := connectToTrackDevices(watcher.server)
+		scanner, err := connectToTrackDevices(watcher.server, watcher.useTransportId)
 
 		go func() {
 			if ctx != nil {
@@ -144,7 +146,7 @@ func publishDevices(watcher *deviceWatcherImpl, ctx context.Context) {
 			return
 		}
 
-		finished, err = publishDevicesUntilError(scanner, watcher.eventChan, &lastKnownStates)
+		finished, err = publishDevicesUntilError(scanner, watcher.eventChan, &lastKnownStates, watcher.useTransportId)
 		if err != nil {
 			log.Printf("[DeviceWatcher] publish devices failed %s…", err)
 			watcher.reportErr(err)
@@ -192,18 +194,23 @@ func publishDevices(watcher *deviceWatcherImpl, ctx context.Context) {
 	}
 }
 
-func connectToTrackDevices(server server) (wire.Scanner, error) {
+func connectToTrackDevices(server server, useTransportId bool) (wire.Scanner, error) {
 	conn, err := server.Dial()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := wire.SendMessageString(conn, "host:track-devices"); err != nil {
+	hostTrackDeviceCmd := "host:track-devices"
+	if useTransportId {
+		hostTrackDeviceCmd = "host:track-devices-l"
+	}
+
+	if err := wire.SendMessageString(conn, hostTrackDeviceCmd); err != nil {
 		conn.Close()
 		return nil, err
 	}
 
-	if _, err := conn.ReadStatus("host:track-devices"); err != nil {
+	if _, err := conn.ReadStatus(hostTrackDeviceCmd); err != nil {
 		conn.Close()
 		return nil, err
 	}
@@ -211,14 +218,14 @@ func connectToTrackDevices(server server) (wire.Scanner, error) {
 	return conn, nil
 }
 
-func publishDevicesUntilError(scanner wire.Scanner, eventChan chan<- DeviceStateChangedEvent, lastKnownStates *map[string]DeviceState) (finished bool, err error) {
+func publishDevicesUntilError(scanner wire.Scanner, eventChan chan<- DeviceStateChangedEvent, lastKnownStates *map[string]DeviceState, useTransportId bool) (finished bool, err error) {
 	for {
 		msg, err := scanner.ReadMessage()
 		if err != nil {
 			return false, err
 		}
 
-		deviceStates, err := parseDeviceStates(string(msg))
+		deviceStates, err := parseDeviceStates(string(msg), useTransportId)
 		if err != nil {
 			return false, err
 		}
@@ -230,7 +237,7 @@ func publishDevicesUntilError(scanner wire.Scanner, eventChan chan<- DeviceState
 	}
 }
 
-func parseDeviceStates(msg string) (states map[string]DeviceState, err error) {
+func parseDeviceStates(msg string, useTransportId bool) (states map[string]DeviceState, err error) {
 	states = make(map[string]DeviceState)
 
 	for lineNum, line := range strings.Split(msg, "\n") {
@@ -238,13 +245,27 @@ func parseDeviceStates(msg string) (states map[string]DeviceState, err error) {
 			continue
 		}
 
-		fields := strings.Split(line, "\t")
-		if len(fields) != 2 {
-			err = errors.Errorf(errors.ParseError, "invalid device state line %d: %s", lineNum, line)
-			return
+		var serial, stateString string
+		if useTransportId {
+			fields := strings.Split(deleteExtraSpace(line), " ")
+			var transportId string
+			for _, info := range fields {
+				if strings.Contains(info, "transport_id") {
+					transInfo := strings.Split(info, ":")
+					transportId = transInfo[1]
+					break
+				}
+			}
+			serial, stateString = transportId, fields[1]
+		} else {
+			fields := strings.Split(line, "\t")
+			if len(fields) != 2 {
+				err = errors.Errorf(errors.ParseError, "invalid device state line %d: %s", lineNum, line)
+				return
+			}
+			serial, stateString = fields[0], fields[1]
 		}
 
-		serial, stateString := fields[0], fields[1]
 		var state DeviceState
 		state, err = parseDeviceState(stateString)
 		states[serial] = state
