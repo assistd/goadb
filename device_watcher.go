@@ -160,6 +160,7 @@ func publishDevices(watcher *deviceWatcherImpl, ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case <-time.After(time.Second):
 		}
 
 		if HasErrCode(err, ConnectionResetError) {
