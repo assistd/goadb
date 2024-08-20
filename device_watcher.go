@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/zach-klippenstein/goadb/internal/errors"
 	"github.com/zach-klippenstein/goadb/wire"
 )
 
@@ -241,13 +240,17 @@ func parseDeviceStates(msg string) (states map[string]DeviceState, err error) {
 
 		fields := strings.Split(line, "\t")
 		if len(fields) != 2 {
-			err = errors.Errorf(errors.ParseError, "invalid device state line %d: %s", lineNum, line)
-			return
+			log.Printf("[DeviceWatcher] invalid device state line %d: %s", lineNum, line)
+			continue
 		}
 
 		serial, stateString := fields[0], fields[1]
 		var state DeviceState
 		state, err = parseDeviceState(stateString)
+		if err != nil {
+			log.Printf("[DeviceWatcher] parseDeviceState %s err failed %s…", stateString, err)
+			err = nil
+		}
 		states[serial] = state
 	}
 
